@@ -3,10 +3,14 @@
 	--minus-indent: -4ch;
 }
 
-.wizard.literal.array {
+.spell.array {
 	padding-left: var(--indent);
 }
 
-.wizard.literal.array > span.bracket {
+.spell.array > span.bracket {
 	margin-left: var(--minus-indent);
+}
+
+.spell.keyValuePair > span::after {
+	content: ':';
 }
