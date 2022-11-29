@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Wizard</title>
+	<script src="wizard.js"></script>
+	<link rel="stylesheet" type="text/css" href="wizard-robe.css">
+</head>
+<body>
+	<div id="hat"></div>
+	<script type="text/javascript">
+	let root = document.getElementById('hat');
+	let grammar = {
+		humanAgent: [{ type: ["human"] }],
+		randomAgent: [{ type: ["random"] }],
+		networkAgent: [{ type: ["network"] }],
+		botAgent: [{
+			type: ["bot"],
+			policy: [ "staticDFS", "adaptiveDFS" ],
+			heuristic: ["pxt"]
+		}],
+		staticDFS: [{ "type": ["staticDFS"], "oppTurn": [ [null], "botPolicy" ] }],
+		adaptiveDFS: [{ "type": ["adaptiveDFS"] }],
+		root: [[ "agent", 2 ]],
+		agent: ["humanAgent", "randomAgent", "networkAgent", "botAgent"],
+		botPolicy: ["staticDFS", "adaptiveDFS"]
+	};
+	root.appendChild(enwizen(grammar));
+	</script>
+</body>
+</html>

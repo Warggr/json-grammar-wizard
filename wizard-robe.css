@@ -1,0 +1,12 @@
+:root {
+	--indent: 4ch;
+	--minus-indent: -4ch;
+}
+
+.wizard.literal.array {
+	padding-left: var(--indent);
+}
+
+.wizard.literal.array > span.bracket {
+	margin-left: var(--minus-indent);
+}
