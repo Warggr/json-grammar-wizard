@@ -9,8 +9,25 @@
 
 .spell.array > span.bracket {
 	margin-left: var(--minus-indent);
+	display: block;
 }
 
 .spell.keyValuePair > span::after {
 	content: ':';
+}
+
+.spell.keyValuePair {
+	display: inline;
+}
+
+.spell.optional.not-selected > div.keyValuePair > .spell {
+	display: none;
+}
+
+.spell.optional.not-selected > div.keyValuePair > span:first-child {
+	text-decoration: line-through;
+}
+
+.spell.optional.not-selected > div.keyValuePair > span:first-child::after {
+	content: ': ...';
 }
