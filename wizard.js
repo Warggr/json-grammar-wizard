@@ -23,7 +23,7 @@ function readWord(rootDom){
 		for(let elem of rootDom.children) if(elem.classList.contains('spell')){
 			let true_elem = elem;
 			if(elem.classList.contains('optional')){
-				assert(elem.firstElementChild.type == 'checkbox' );
+				assert(elem.firstElementChild.type == 'checkbox', 'Expected checkbox' );
 				if(!elem.firstElementChild.checked) continue;
 				else true_elem = elem.childNodes[1];
 			}
@@ -69,10 +69,10 @@ function _makeWord(content){
 		throw new Error('Number literal matches nothing: ' + content);
 	}
 	else if(typeof content === 'string'){
-		if(content === 'integer'){
+		if(['integer', 'string'].includes(content)){
 			let inputDom = document.createElement('input');
 			inputDom.classList.add('spell', 'input');
-			inputDom.type = 'number';
+			if(content == 'integer') inputDom.type = 'number';
 			return inputDom;
 		}
 		else if(!completeGrammar.hasOwnProperty(content)) throw new Error('Varname ' + content + ' not found');
@@ -152,11 +152,26 @@ function _makeWord(content){
 			let intermediate = document.createElement('div'); intermediate.classList.add('spell', 'optional', 'not-selected');
 			let checkbox = document.createElement('input'); checkbox.type = 'checkbox';
 			checkbox.onchange = (event) => {
-				if(event.target.checked) event.target.parentNode.classList.remove('not-selected');
-				else event.target.parentNode.classList.add('not-selected');
+				let parent = event.target.parentNode;
+				let grammarHolder = parent.children[2];
+				if(event.target.checked){
+					parent.children[1].insertBefore(_makeWord(JSON.parse(grammarHolder.textContent)), parent.children[1].children[1]);
+					event.target.parentNode.classList.remove('not-selected');
+				} else {
+					parent.children[1].removeChild(parent.children[1].children[1]);
+					event.target.parentNode.classList.add('not-selected');
+				}
 			}
 			intermediate.appendChild(checkbox);
-			intermediate.appendChild(addKeyValuePair(key, content.optional[key]));
+
+			let keyValuePairDom = document.createElement('div');
+			keyValuePairDom.classList = 'spell keyValuePair';
+			let name = document.createElement('span'); name.textContent = key; keyValuePairDom.appendChild(name);
+			intermediate.appendChild(keyValuePairDom);
+
+			let rawData = document.createElement('span'); rawData.textContent = JSON.stringify(content.optional[key]); rawData.style.display = 'none';
+			intermediate.appendChild(rawData);
+
 			rootDom.appendChild(intermediate);
 			comma = document.createElement('span'); comma.textContent = ','; rootDom.appendChild(comma);
 		}
