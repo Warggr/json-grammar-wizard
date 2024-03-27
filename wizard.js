@@ -1,8 +1,29 @@
-var content = undefined;
-
-var completeGrammar = undefined;
+var schemaDatabase = {
+	allKnownSchemas: {},
+	addToDatabase: function(schema) {
+		console.log("Adding", schema.$id, "to database");
+		this.allKnownSchemas[schema.$id] = schema;
+	},
+	resolve: function(ref, currentId) {
+		assert(currentId !== undefined, 'Missing currentId');
+		let address, fragment;
+		if(ref.includes('#')){ [address, fragment] = ref.split('#'); }
+		else [address, fragment] = [ ref, undefined ];
+		address = address || currentId;
+		assert(address in this.allKnownSchemas, 'Address not known:', address);
+		let schema = this.allKnownSchemas[address];
+		if(fragment){
+			assert(fragment[0] == '/'); fragment = fragment.substring(1);
+			for(let ptr of fragment.split('/')){
+				schema = schema[ptr];
+			}
+		}
+		return schema;
+	}
+};
 
 function assert(truth, message, data){
+	if(data === undefined) data = '';
 	if(! truth) throw new Error(message + data);
 }
 
@@ -57,134 +78,151 @@ function addKeyValuePair(key, value){
 	let keyValuePairDom = document.createElement('div');
 	keyValuePairDom.classList = 'spell keyValuePair';
 	let name = document.createElement('span'); name.textContent = key; keyValuePairDom.appendChild(name);
-	keyValuePairDom.appendChild(_makeWord(value));
+	keyValuePairDom.appendChild(makeWord(value));
 	return keyValuePairDom;
 }
 
-function _makeWord(content){
-	if(content == null){
-		throw new Error('Literal null matches nothing');
-	}
-	else if(typeof content === 'number'){
-		throw new Error('Number literal matches nothing: ' + content);
-	}
-	else if(typeof content === 'string'){
-		if(['integer', 'string'].includes(content)){
-			let inputDom = document.createElement('input');
-			inputDom.classList.add('spell', 'input');
-			if(content == 'integer') inputDom.type = 'number';
-			return inputDom;
-		}
-		else if(!completeGrammar.hasOwnProperty(content)) throw new Error('Varname ' + content + ' not found');
-		else return _makeWord(completeGrammar[content]);
-	}
-	else if(Array.isArray(content)){
-		if(content.length >= 2){ // "or"
-			let rootDom = document.createElement('div');
-			rootDom.classList = 'spell choice';
-			let selector = document.createElement('select');
-			rootDom.appendChild(selector);
-			for(let poss of content){
-				let option = document.createElement('option');
-				option.textContent = JSON.stringify(poss);
-				selector.appendChild(option);
-			}
-			selector.onchange = event => {
-				let selector = event.target; let parent = selector.parentNode;
-				parent.removeChild(parent.children[1]);
-				parent.appendChild(_makeWord(JSON.parse(selector.selectedOptions[0].textContent)));
-			};
-			rootDom.appendChild(_makeWord(content[0]));
-			return rootDom;
-		}
-		else if(content.length == 1){ // literal
-			let literal = content[0];
-			if(literal == null || typeof literal == 'number' || typeof literal == 'string'){
-				let retVal = document.createElement('p'); retVal.classList = 'spell literal'; retVal.textContent = JSON.stringify(literal); return retVal;
-			}
-			else if(Array.isArray(literal)){
-				let rootDom = document.createElement('div');
-				rootDom.classList = 'spell array list';
-				let open = document.createElement('span'); open.classList = 'bracket'; open.textContent = '['; rootDom.appendChild(open);
-				let comma;
-				if(literal.length == 1){
-					// TODO
-				} else if(literal.length == 2){
-					let length = literal[1];
-					if(typeof length != 'number') throw new Error('Expected second element of array to be a number');
-					for(let i = 0; i<length; i++){
-						rootDom.appendChild(_makeWord(literal[0]));
-						comma = document.createElement('span'); comma.textContent = ','; rootDom.appendChild(comma);
-					}
-				} else {
-					throw 'Syntax error: array literal must be either [ ELEMENT_TYPE ] or [ ELEMENT_TYPE, ARRAY_LENGTH ]';
-				}
-				comma.textContent = ']'; comma.classList = 'bracket';
-				return rootDom;
-			}
-			else if(typeof literal == 'object'){
-				let rootDom = document.createElement('div');
-				rootDom.classList = 'spell array associative';
-				let open = document.createElement('span'); open.classList = 'bracket'; open.textContent = '{'; rootDom.appendChild(open);
-				let comma;
-				for(let key in literal){
-					rootDom.appendChild(addKeyValuePair(key, literal[key]));
-					comma = document.createElement('span'); comma.textContent = ','; rootDom.appendChild(comma);
-				}
-				comma.textContent = '}'; comma.classList = 'bracket';
-				return rootDom;
-			}
-		} else {
-			throw new Error('Literal [] matches nothing');
-		}
-	}
-	else if(typeof content === 'object'){
-		assert(content["required"] && content["optional"], "Class-object does not contain 'required' and 'optional'");
-		let rootDom = document.createElement('div');
-		rootDom.classList = 'spell array associative';
-		let open = document.createElement('span'); open.classList = 'bracket'; open.textContent = '{'; rootDom.appendChild(open);
-		let comma;
-		for(let key in content.required){
-			rootDom.appendChild(addKeyValuePair(key, content.required[key]));
-			comma = document.createElement('span'); comma.textContent = ','; rootDom.appendChild(comma);
-		}
-		for(let key in content.optional){
-			let intermediate = document.createElement('div'); intermediate.classList.add('spell', 'optional', 'not-selected');
-			let checkbox = document.createElement('input'); checkbox.type = 'checkbox';
-			checkbox.onchange = (event) => {
-				let parent = event.target.parentNode;
-				let grammarHolder = parent.children[2];
-				if(event.target.checked){
-					parent.children[1].insertBefore(_makeWord(JSON.parse(grammarHolder.textContent)), parent.children[1].children[1]);
-					event.target.parentNode.classList.remove('not-selected');
-				} else {
-					parent.children[1].removeChild(parent.children[1].children[1]);
-					event.target.parentNode.classList.add('not-selected');
-				}
-			}
-			intermediate.appendChild(checkbox);
-
-			let keyValuePairDom = document.createElement('div');
-			keyValuePairDom.classList = 'spell keyValuePair';
-			let name = document.createElement('span'); name.textContent = key; keyValuePairDom.appendChild(name);
-			intermediate.appendChild(keyValuePairDom);
-
-			let rawData = document.createElement('span'); rawData.textContent = JSON.stringify(content.optional[key]); rawData.style.display = 'none';
-			intermediate.appendChild(rawData);
-
-			rootDom.appendChild(intermediate);
-			comma = document.createElement('span'); comma.textContent = ','; rootDom.appendChild(comma);
-		}
-		comma.textContent = '}'; comma.classList = 'bracket';
-		return rootDom;
-	}
-	else {
-		console.warn(content);
-		throw new Error('Object not recognized by grammar');
-	}
+function nameForObject(object){
+	return JSON.stringify(object);
 }
 
-function makeWord(grammar){
-	completeGrammar = grammar;
-	return _makeWord(grammar.root);
+function makeWord(content, currentId){
+	if(currentId === undefined){
+		currentId = content.$id;
+		schemaDatabase.addToDatabase(content);
+	}
+
+	console.log('Making word from schema', content, 'with ID', currentId);
+	assert(typeof content === 'object' && content !== null, 'Schema should be an object, is', content);
+
+	if(content.$ref){
+		const resolvedContent = schemaDatabase.resolve(content.$ref, currentId);
+		return makeWord(resolvedContent, currentId);
+	}
+	else if(content.const) {
+		let retVal = document.createElement('p'); retVal.classList = 'spell literal'; retVal.textContent = JSON.stringify(content.const); return retVal;
+	}
+	else if(content.enum) {
+		let selector = document.createElement('select');
+		selector.classList = 'spell';
+		for(let value of content.enum){
+			let option = document.createElement('option');
+			option.textContent = JSON.stringify(value);
+			selector.appendChild(option);
+		}
+		return selector;
+	}
+	else if(content.oneOf) {
+		let rootDom = document.createElement('div');
+		rootDom.classList = 'spell choice';
+		let selector = document.createElement('select');
+		rootDom.appendChild(selector);
+		for(let poss of content.oneOf){
+			let option = document.createElement('option');
+			option.textContent = nameForObject(poss);
+			selector.appendChild(option);
+		}
+		selector.onchange = event => {
+			let selector = event.target; let parent = selector.parentNode;
+			parent.removeChild(parent.children[1]);
+			parent.appendChild(makeWord(JSON.parse(selector.selectedOptions[0].textContent), currentId));
+		};
+		rootDom.appendChild(makeWord(content.oneOf[0], currentId));
+		return rootDom;
+	}
+	else if(content.type){
+		if(['integer', 'string'].includes(content.type)){
+			let inputDom = document.createElement('input');
+			inputDom.classList.add('spell', 'input');
+			if(content.type == 'integer'){
+				inputDom.type = 'number';
+				if(content.minimum) {
+					inputDom.min = content.minimum;
+				}
+				if(content.maximum) {
+					inputDom.max = content.maximum;
+				}
+			}
+			else if(content.type == 'string'){
+			}
+			return inputDom;
+		}
+		else if(content.type == 'array'){
+			console.log('Handling array');
+			let rootDom = document.createElement('div');
+			rootDom.classList = 'spell array list';
+
+			if(content.prefixItems){
+				for(let item of content.prefixItems){
+					rootDom.appendChild(makeWord(item, currentId));
+				}
+			}
+			function deleteItemHandler(event){ let x = event.target; x.parentNode.parentNode.removeChild(x.parentNode); }
+			// using rootDom as an argument so the external rootDom is not in the function closure. If the function has no closure, it can be reused between invocations
+			// tl;dr: this is a useless and premature optimization
+			function newItem(schema){
+				let div = document.createElement('div');
+				let newElement = makeWord(schema, currentId);
+				let deleteElementButton = document.createElement('button'); deleteElementButton.textContent = 'x'; deleteElementButton.classList = 'closeButton';
+				deleteElementButton.onclick = deleteItemHandler;
+				div.appendChild(newElement); div.appendChild(deleteElementButton);
+				return div;
+			}
+			if(content.items !== false){ // if false: do not allow additional items
+				let itemSpec = content.items || {}; // if undefined: allow additional items without validation ({} is matched by everything)
+
+				while(rootDom.childElementCount < content.minItems){
+					rootDom.appendChild( newItem(itemSpec) );
+				}
+
+				let plusButton = document.createElement('button'); plusButton.textContent = '+'; plusButton.classList = 'plusButton';
+				rootDom.append(plusButton);
+				plusButton.onclick = event => { let rootDom = event.target.parentNode; rootDom.insertBefore( newItem(itemSpec), plusButton); }
+			}
+
+			return rootDom;
+		}
+		else if(content.type == "object"){
+			let rootDom = document.createElement('div');
+			rootDom.classList = 'spell array associative';
+
+			let required = content.required || [];
+			for(let key in content.properties){
+				if(required.includes(key)){
+					rootDom.appendChild(addKeyValuePair(key, content.properties[key]));
+				} else {
+					let intermediate = document.createElement('div'); intermediate.classList.add('spell', 'optional', 'not-selected');
+					let checkbox = document.createElement('input'); checkbox.type = 'checkbox';
+					checkbox.onchange = (event) => {
+						let parent = event.target.parentNode;
+						let grammarHolder = parent.children[2];
+						if(event.target.checked){
+							parent.children[1].insertBefore(makeWord(JSON.parse(grammarHolder.textContent), currentId), parent.children[1].children[1]);
+							event.target.parentNode.classList.remove('not-selected');
+						} else {
+							parent.children[1].removeChild(parent.children[1].children[1]);
+							event.target.parentNode.classList.add('not-selected');
+						}
+					}
+					intermediate.appendChild(checkbox);
+
+					let keyValuePairDom = document.createElement('div');
+					keyValuePairDom.classList = 'spell keyValuePair';
+					let name = document.createElement('span'); name.textContent = key; keyValuePairDom.appendChild(name);
+					intermediate.appendChild(keyValuePairDom);
+
+					let rawData = document.createElement('span'); rawData.textContent = JSON.stringify(content.optional[key]); rawData.style.display = 'none';
+					intermediate.appendChild(rawData);
+
+					rootDom.appendChild(intermediate);
+				}
+			}
+
+			return rootDom;
+		}
+		else throw new Error('Unrecognized object type: ' + content.type);
+	}
+	else {
+		throw new Error('Not implemented: object with keys' + Object.keys(content));
+	}
 }

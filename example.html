@@ -11,22 +11,40 @@
 	<div id="hat"></div>
 	<script type="text/javascript">
 	let root = document.getElementById('hat');
-	let grammar = {
-		humanAgent: [{ type: ["human"] }],
-		randomAgent: [{ type: ["random"] }],
-		networkAgent: [{ type: ["network"] }],
-		botAgent: [{
-			type: ["bot"],
-			policy: [ "staticDFS", "adaptiveDFS" ],
-			heuristic: ["pxt"]
-		}],
-		staticDFS: [{ "type": ["staticDFS"], "oppTurn": [ [null], "botPolicy" ] }],
-		adaptiveDFS: [{ "type": ["adaptiveDFS"] }],
-		root: [[ "agent", 2 ]],
-		agent: ["humanAgent", "randomAgent", "networkAgent", "botAgent"],
-		botPolicy: ["staticDFS", "adaptiveDFS"]
+	let schema = {
+		$id: 'example.com/example-schema',
+		$schema: 'https://json-schema.org/draft/2020-12/schema',
+		type: "array",
+		minItems: 2,
+		maxItems: 2,
+		items: { $ref: "#/$defs/agent" },
+		$defs: {
+			humanAgent: { type: "object", properties: { "type": { const: "human" } }, required: ["type"] },
+			randomAgent: { type: "object", properties: { "type": { const: "random" } }, required: ["type"] },
+			networkAgent: { type: "object", properties: { "type": { const: "network" } }, required: ["type"] },
+			botAgent: {
+				type: "object",
+				properties: {
+					"type": { const: "bot" },
+					policy: { $ref: "#/$defs/botPolicy" },
+					heuristic: { enum: ["pxt"] }
+				},
+				required: ["type", "policy", "heuristic"]
+			},
+			staticDFS: {
+				type: "object",
+				properties: {
+					"type": { const: "staticDFS" },
+					"oppTurn": { $ref: "#/$defs/botPolicy" }
+				},
+				required: ["type"]
+			},
+			adaptiveDFS: { type: "object", properties: { "type": { const: "adaptiveDFS" } }, required: ["type"] },
+			agent: { oneOf: [ { $ref: "#/$defs/humanAgent"}, { $ref: "#/$defs/randomAgent" }, { $ref: "#/$defs/networkAgent" }, { $ref: "#/$defs/botAgent" }] },
+			botPolicy: { oneOf: [{ $ref: "#/$defs/staticDFS" }, { $ref: "#/$defs/adaptiveDFS" }] }
+		}
 	};
-	let spell = makeWord(grammar);
+	let spell = makeWord(schema);
 	root.appendChild(spell);
 	console.log(readWord(spell));
 	</script>

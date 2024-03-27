@@ -31,3 +31,10 @@
 .spell.optional.not-selected > div.keyValuePair > span:first-child::after {
 	content: ': ...';
 }
+
+.spell.array.associative::before { content: '{'; }
+.spell.array.associative::after { content: '}'; }
+.spell.array.list::before { content: '['; }
+.spell.array.list::after { content: ']'; }
+.spell.array > div::after { content: ','; }
+.spell.array > div:last-of-type::after { content: ''; }
