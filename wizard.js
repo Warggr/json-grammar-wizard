@@ -60,6 +60,10 @@ function readWord(rootDom){
 		assert(rootDom.children[0].nodeName === "SELECT");
 		return readWord(rootDom.children[1]);
 	}
+	else if(rootDom.classList.contains('enum')) {
+		assert(rootDom.nodeName === 'SELECT');
+		return JSON.parse(rootDom.value);
+	}
 	else if(rootDom.classList.contains('input')) {
 		let val = rootDom.value;
 		if(rootDom.type === 'number'){
@@ -104,7 +108,7 @@ function makeWord(content, currentId){
 	}
 	else if(content.enum) {
 		let selector = document.createElement('select');
-		selector.classList = 'spell';
+		selector.classList = 'spell enum';
 		for(let value of content.enum){
 			let option = document.createElement('option');
 			option.textContent = JSON.stringify(value);
